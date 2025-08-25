@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List
-from job_cache import JobCache
+from tests.dataclasses.jobcache import JobCache
 
 @dataclass
 class WorkerContext:
