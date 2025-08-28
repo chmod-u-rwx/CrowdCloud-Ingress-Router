@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 import random  
-from tests.dataclasses.jobcache import JobCache
+from utils.context_vector import build_context_vector
+from utils.max_value_calc import compute_max_values
 
 
 class Router:
@@ -15,6 +16,17 @@ class Router:
         self.job_cache: List[Dict[str,Any]] = []
         self.epsilon = epsilon
 
+        self.cpu_multiplier = 0.4
+        self.memory_multiplier = 0.3
+        self.jobslot_multiplier = 0.1
+        self.runtime_multiplier = -0.1   # negative because lower runtime is better
+        self.latency_multiplier = -0.1   # negative because lower latency is better
+        self.status_bonus = {
+            "RUNNING": 1.0,
+            "STARTED": 0.5,
+            "STOPPED": -1.0
+        }
+
     def select_worker(self, job: dict) -> Dict[str, str]:
         """
         Select a worker for the given job using:
@@ -27,6 +39,10 @@ class Router:
         """
         if not self.workers:
             raise ValueError("No workers available right now uwu")
+
+        for worker in self.workers:
+            ctx = build_context_vector(worker, job, self.max_values)
+            print(f"[DEBUG] Worker {worker['worker_id']} context: {ctx}")
         
         workers_with_same_job_cache = []
         current_job=job["job_id"]
@@ -44,7 +60,15 @@ class Router:
             return {"master_id": best_worker["master_id"], "worker_id": best_worker["worker_id"]}
         
         def get_worker_hardware_score(worker: Dict[str, Any]) -> float:
-            return (worker["cpu"] * 0.5) + (worker["memory"] * 0.2) + (worker["job_slot"] * 0.1)
+            score = (
+                (worker["cpu"] * 0.4) +
+                (worker["memory"] * 0.3) +
+                (worker["job_slot"] * 0.1) +
+                (worker["code_runtime"] * -0.1) +
+                (worker["latency"] * -0.1)
+            )
+            score += self.status_bonus.get(worker["status"], 0)
+            return score
         
         best_worker = max(self.workers, key=get_worker_hardware_score)
 
@@ -52,14 +76,14 @@ class Router:
             return random.choice(self.workers)
         return {"master_id": best_worker["master_id"], "worker_id": best_worker["worker_id"]}
 
-    def update_worker_data(self, worker_list: List[Dict[str,Any]]):
+    def update_worker_data(self, worker_list: List[Dict[str,Any]]): # heartbeat
         """
         Update the internal worker context list with the latest data.
         Validates that each worker has the required fields.
 
         :param worker_list: List of worker context dicts (hardware info/status).
         """
-        required_attr = {"worker_id", "master_id", "cpu", "memory", "job_slot", "status", "code_runtime"}
+        required_attr = {"worker_id", "master_id", "cpu", "memory", "job_slot", "status", "code_runtime", "latency"}
         valid_workers = []
 
         for worker in worker_list:
@@ -82,14 +106,17 @@ class Router:
             valid_workers.append(worker)
         
         self.workers = valid_workers
+        self.max_values = compute_max_values(self.workers)
 
     def update_reward(self, worker_id: str, job_id: str, reward: float):
-        """
-        Update worker performance/reward after job completion.
-        
-        :param worker_id: ID of the worker that executed the job
-        :param job_id: ID of the job
-        :param reward: success/failure or performance metric
-        """
-        # TODO: implement learning update
-        pass  
+        for worker in self.workers:
+            if worker["worker_id"] == worker_id:
+                cache = worker.setdefault("job_cache", [])
+                
+                for past in cache:
+                    if past["job_id"] == job_id:
+                        past["reward"] = reward
+                        return
+                
+                cache.append({"job_id": job_id, "reward": reward})
+                return
