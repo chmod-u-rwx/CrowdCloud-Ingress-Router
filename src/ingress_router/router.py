@@ -99,3 +99,5 @@ class Router:
 
                 cache.append({"job_id": job_id, "reward": reward})
                 return
+
+router = Router()
