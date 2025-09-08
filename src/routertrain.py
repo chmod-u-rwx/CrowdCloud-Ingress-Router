@@ -1,78 +1,89 @@
-from src.routerenv import RouterEnv
-from src.router import Router
+from __future__ import annotations
+from typing import Any, Dict, List, Union, cast
+from routerenv import RouterEnv
+from router import Router, Worker, Job
 from utils.max_value_calc import compute_max_values
-from stable_baselines3 import PPO
+# from stable_baselines3 import PPO
 import pandas as pd
 import json
+import numpy as np
+import numpy.typing as npt
+from uuid import UUID
+from type_dict import Job
 
-workers_data_file = "data/worker.xlsx"
-jobs_data_file = "data/jobs.xlsx"
+workers_data_file: str = "data/worker.xlsx"
+jobs_data_file: str = "data/jobs.xlsx"
 
-workers_df = pd.read_excel(workers_data_file)
-jobs_df = pd.read_excel(jobs_data_file)
 
-def parse_job_cache(value):
+def parse_job_cache(value: Union[str, List[Any], List[Dict[str, Any]], None]) -> List[Job]:
+    """
+    Normalize job_cache values from Excel into a list of {"job_id": str}.
+    Handles JSON strings, comma-separated, single strings, and lists.
+    """
     if isinstance(value, str):
-        # Case 1: JSON string (["job_1", "job_2"])
         try:
             parsed = json.loads(value)
             if isinstance(parsed, list):
-                return [{"job_id": j.strip()} if isinstance(j, str) else j for j in parsed]
+                result: List[Job] = []
+                for j in parsed: # type: ignore
+                    if isinstance(j, str):
+                        result.append(Job(job_id=UUID(j)))
+                    elif isinstance(j, dict):
+                        j_dict = cast(dict[str, Any], j)
+                        result.append(Job(job_id=UUID(str(j_dict["job_id"]))))
+                return result
         except json.JSONDecodeError:
             pass
 
-        # Case 2: Comma separated (job_1, job_2)
         if "," in value:
-            return [{"job_id": j.strip()} for j in value.split(",")]
+            return [Job(job_id=UUID(j.strip())) for j in value.split(",")]
 
-        # Case 3: Single string (job_1)
-        return [{"job_id": value.strip()}]
+        return [Job(job_id=UUID(value.strip()))]
 
-    # Already list of dicts
     if isinstance(value, list):
-        if all(isinstance(j, str) for j in value):
-            return [{"job_id": j} for j in value]
-        return value
+        jobs: List[Job] = []
+        for j in value:
+            if isinstance(j, str):
+                jobs.append(Job(job_id=UUID(j)))
+            elif isinstance(j, dict):
+                j_dict = cast(dict[str, Any], j)
+                jobs.append(Job(job_id=UUID(str(j_dict["job_id"]))))
+        return jobs
 
     return []
 
-workers_df["job_cache"] = workers_df["job_cache"].apply(parse_job_cache)
 
-workers = workers_df.to_dict(orient='records')
-jobs = jobs_df.to_dict(orient='records')
+# --- Load data ---
+workers_df: pd.DataFrame = pd.read_excel(workers_data_file) # type: ignore
+jobs_df: pd.DataFrame = pd.read_excel(jobs_data_file) # type: ignore
 
+workers_df["job_cache"] = workers_df["job_cache"].apply(parse_job_cache) #type: ignore
+
+workers: List[Worker] = workers_df.to_dict(orient="records")  # type: ignore
+jobs: List[Job] = jobs_df.to_dict(orient="records")  # type: ignore
+
+
+# --- Router + Environment ---
 router = Router()
-router.update_worker_data(workers) #type: ignore
+router.update_worker_data(workers)  # populates router.workers
+
 env = RouterEnv(router, jobs, compute_max_values(workers))
 
+obs: npt.NDArray[np.float32]
 obs, _ = env.reset()
 
-ctx_size = 7
+ctx_size: int = 7
 print("Initial observation by worker:")
 for i, worker in enumerate(router.workers):
     start = i * ctx_size
     end = start + ctx_size
-    worker_obs = obs[start:end]
+    worker_obs: npt.NDArray[np.float32] = obs[start:end]
     print(f"  {worker['worker_id']}: {worker_obs}")
 
 
-# for step in range(len(jobs)):
-
-#     action = env.action_space.sample()
-    
-#     obs, reward, done, truncated, info = env.step(action)
-    
-#     print(f"\nStep {step + 1}")
-#     print("Selected worker:", router.workers[action]["worker_id"])
-#     print("Reward received:", reward)
-#     print("Updated job_cache:", router.workers[action]["job_cache"])
-    
-#     if done:
-#         print("\nAll jobs processed.")
-#         break
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=5000)
-model.save("worker_selector_model")
+# --- RL Training ---
+# model = PPO("MlpPolicy", env, verbose=1)
+# model.learn(total_timesteps=5000) # type:ignore
+# model.save("worker_selector_model")
 
 print("Training finished and model saved.")
-

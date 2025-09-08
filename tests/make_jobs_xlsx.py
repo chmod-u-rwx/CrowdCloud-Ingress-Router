@@ -14,7 +14,7 @@ def generate_jobs(n=100):
     jobs = []
     for i in range(1, n+1):
         job = {
-            "job_id": f"job{i}",
+            "job_id": f"job_{i}",
             "repo_link": f"https://github.com/example/repo{i}",
             "path": f"/api/{random_string(5)}",
             "method": random.choice(METHODS),
