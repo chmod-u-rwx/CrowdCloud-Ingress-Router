@@ -1,15 +1,15 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Union, cast
 from routerenv import RouterEnv
-from router import Router, Worker, Job
-from utils.max_value_calc import compute_max_values
-# from stable_baselines3 import PPO
 import pandas as pd
 import json
 import numpy as np
 import numpy.typing as npt
 from uuid import UUID
-from type_dict import Job
+
+from .type_dict import Job
+from .router import Router, Worker, Job
+from .utils.max_value_calc import compute_max_values
 
 workers_data_file: str = "data/worker.xlsx"
 jobs_data_file: str = "data/jobs.xlsx"

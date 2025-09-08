@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.typing as npt
-from src.type_dict import Worker, Job, MaxValues
+
+from ..type_dict import Worker, Job, MaxValues
 
 
 def build_context_vector(worker: Worker, job: Job, max_values: MaxValues) -> npt.NDArray[np.float32]:

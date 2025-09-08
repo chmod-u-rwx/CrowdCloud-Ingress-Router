@@ -1,6 +1,7 @@
 from typing import List, Dict,Any
-from type_dict import Worker, JobCache, Job
 from uuid import UUID
+
+from .type_dict import Worker, JobCache, Job
 
 class Router:
     def __init__(self) -> None:

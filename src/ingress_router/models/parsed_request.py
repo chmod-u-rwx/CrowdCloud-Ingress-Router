@@ -1,6 +1,7 @@
 from typing import Any, Dict
 from pydantic import BaseModel
-from src.models.payloads import MethodEnum
+
+from ..models.payloads import MethodEnum
 
 class ParsedRequest(BaseModel):
 	path: str

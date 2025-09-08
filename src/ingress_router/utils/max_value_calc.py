@@ -1,5 +1,6 @@
 from typing import List
-from src.type_dict import Worker, MaxValues
+
+from ..type_dict import Worker, MaxValues
 
 def compute_max_values(workers: List[Worker]) -> MaxValues:
     if not workers:

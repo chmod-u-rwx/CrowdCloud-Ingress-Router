@@ -3,9 +3,10 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
-from utils.context_vector import build_context_vector
-from src.router import Router
-from src.type_dict import Worker, Job, MaxValues
+
+from .router import Router
+from .type_dict import Worker, Job, MaxValues
+from .utils.context_vector import build_context_vector
 
 
 class RouterEnv(gym.Env[npt.NDArray[np.float32], int]):
