@@ -60,3 +60,4 @@ class Router:
             worker = self.base_router.workers[action]
 
             return {"worker_id": worker["worker_id"], "master_id": worker["master_id"]}
+
