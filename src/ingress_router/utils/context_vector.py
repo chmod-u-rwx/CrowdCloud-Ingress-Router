@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 
-from ..type_dict import Worker, Job, MaxValues
+from ..models.type_dict import Worker, Job, MaxValues
 
 
 def build_context_vector(worker: Worker, job: Job, max_values: MaxValues) -> npt.NDArray[np.float32]:
@@ -15,6 +15,7 @@ def build_context_vector(worker: Worker, job: Job, max_values: MaxValues) -> npt
     """
 
     cpu_norm: float = worker["cpu"] / max_values["cpu"]
+    memory_norm: float = worker['memory'] / max_values["memory"]
     slot_norm: float = worker["job_slot"] / max_values["job_slot"]
     runtime_norm: float = worker["code_runtime"] / max_values["runtime"]
     latency_norm: float = worker["latency"] / max_values["latency"]
@@ -34,6 +35,7 @@ def build_context_vector(worker: Worker, job: Job, max_values: MaxValues) -> npt
 
     return np.array([
         cpu_norm,
+        memory_norm,
         slot_norm,
         runtime_norm,
         latency_norm,

@@ -1,101 +1,62 @@
-from typing import List, Dict,Any
+from stable_baselines3 import PPO
+from typing import List, Dict
 from uuid import UUID
-
-from .type_dict import Worker, JobCache, Job
+from .models.type_dict import Job, Worker, MaxValues
+from stable_baselines3 import PPO
+from .base_router import BaseRouter
+from .routerenv import RouterEnv
+from .utils.max_value_calc import compute_max_values
+from .utils.context_vector import build_context_vector
+import numpy as np
 
 class Router:
-    def __init__(self) -> None:
+    """
+    Runtime wrapper for a trained PPO model router.
+    Functions for both trained router and PPO model for training and usage.
+    """
+
+    def __init__(self, ppo_model_path: str):
+        self.base_router = BaseRouter()
+        self.max_values: MaxValues = {} # type: ignore
+        self.env: RouterEnv | None = None
+        self.model = PPO.load(ppo_model_path) # type: ignore
+
+    def update_worker_data(self, worker_list:List[Worker]):
         """
-        AI Router for selecting workers based on Contextual Multi-Armed Bandit (CMAB).
+        Populate/refresh the worker list and compute max_values.
+        Must be called before select_workers.
         """
-        self.workers: List[Worker] = []
-        self.job_cache: List[Job] = []
+        self.base_router.update_worker_data(worker_list)
+        self.max_values = compute_max_values(self.base_router.workers)
 
-        self.cpu_multiplier: float = 0.4
-        self.memory_multiplier: float = 0.3
-        self.jobslot_multiplier: float = 0.1
-        self.runtime_multiplier: float = -0.1   # negative because lower runtime is better
-        self.latency_multiplier: float = -0.1   # negative because lower latency is better
-        self.status_bonus: Dict[str, float] = {
-            "RUNNING": 0.5,
-            "STARTED": 1.0,
-            "STOPPED": -1.0
-        }
+        # only to satisfy routerenv init, won't be used
+        dummy_jobs: list[Job] = [
+            {
+                "job_id": UUID(int=0),
+            }
+        ]
+        self.env = RouterEnv(self.base_router, dummy_jobs, self.max_values)
 
-    def select_worker(self, job: Job) -> Dict[str, Any]:
-        """
-        Select a worker based on combined job cache reward and hardware context score.
-        Workers with previous job experience get higher weight.
-        """
-        if not self.workers:
-            raise ValueError("No workers available right now uwu")
+    def select_worker(self, job: Job) -> Dict[str, UUID]:
+            """
+            Call update_worker_data before running this.
+            Select a worker for the given job using the trained PPO model.
+            """
+            if not self.base_router.workers:
+                raise RuntimeError("No workers available. Call update_worker_data first.")
+            if self.env is None:
+                raise RuntimeError("Environment not initialized. Call update_worker_data first.")
 
-        current_job: UUID = job["job_id"]
+            vectors = [build_context_vector(worker, job, self.max_values)
+                    for worker in self.base_router.workers]
 
-        def get_worker_score(worker: Worker) -> float:
-            hw_score: float = (
-                (worker["cpu"] * self.cpu_multiplier) +
-                (worker["memory"] * self.memory_multiplier) +
-                (worker["job_slot"] * self.jobslot_multiplier) +
-                (worker["code_runtime"] * self.runtime_multiplier) +
-                (worker["latency"] * self.latency_multiplier)
-            )
-            hw_score += self.status_bonus.get(worker["status"], 0.0)
+            while len(vectors) < 4:
+                vectors.append(np.zeros_like(vectors[0]))
+            
+            obs = np.concatenate(vectors, dtype=np.float32)
+            action_array, _ = self.model.predict(obs, deterministic=False) # type: ignore
+            action = int(action_array) #type: ignore
+            action = min(action, len(self.base_router.workers) - 1)
+            worker = self.base_router.workers[action]
 
-            reward_score: float = 0.0
-            for past_job in worker.get("job_cache", []):
-                if past_job["job_id"] == current_job:
-                    reward_score = past_job.get("reward", 0.0) or 0.0
-                    break
-
-            combined_score: float = 0.7 * reward_score + 0.3 * hw_score
-            return combined_score
-
-        best_worker: Worker = max(self.workers, key=get_worker_score)
-        return {"master_id": best_worker["master_id"], "worker_id": best_worker["worker_id"]}
-
-    def update_worker_data(self, worker_list: List[Worker]) -> None:  # heartbeat
-        """
-        Update the internal worker context list with the latest data.
-        Validates that each worker has the required fields.
-
-        :param worker_list: List of worker context dicts (hardware info/status).
-        """
-        required_attr = {"worker_id", "master_id", "cpu", "memory", "job_slot", "status", "code_runtime", "latency"}
-        valid_workers: List[Worker] = []
-
-        for worker in worker_list:
-            if not required_attr.issubset(worker.keys()):
-                print(f"Skipping {worker}, due to missing attributes")
-                continue
-
-            try:
-                worker["cpu"] = float(worker["cpu"])
-                worker["memory"] = float(worker["memory"])
-                worker["job_slot"] = float(worker["job_slot"])
-                worker["code_runtime"] = float(worker["code_runtime"])
-            except (ValueError, TypeError):
-                print(f"Skipping {worker}, due to invalid data types")
-                continue
-
-            if "job_cache" not in worker:
-                worker["job_cache"] = []
-
-            valid_workers.append(worker)
-
-        self.workers = valid_workers
-        if self.workers:
-            self.max_values = compute_max_values(self.workers)  # type: ignore[name-defined]
-
-    def update_reward(self, worker_id: UUID, job_id: UUID, reward: float) -> None:
-        for worker in self.workers:
-            if worker["worker_id"] == worker_id:
-                cache: list[JobCache] = worker.setdefault("job_cache", [])
-
-                for past in cache:
-                    if past["job_id"] == job_id:
-                        past["reward"] = reward
-                        return
-
-                cache.append({"job_id": job_id, "reward": reward})
-                return
+            return {"worker_id": worker["worker_id"], "master_id": worker["master_id"]}
