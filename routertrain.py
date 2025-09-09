@@ -1,18 +1,18 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Union, cast
-from routerenv import RouterEnv
+from src.ingress_router.routerenv import RouterEnv
 import pandas as pd
 import json
 import numpy as np
 import numpy.typing as npt
 from uuid import UUID
-
-from .type_dict import Job
-from .router import Router, Worker, Job
-from .utils.max_value_calc import compute_max_values
+from stable_baselines3 import PPO
+from src.ingress_router.models.type_dict import Job
+from src.ingress_router.base_router import BaseRouter, Worker, Job
+from src.ingress_router.utils.max_value_calc import compute_max_values
 
 workers_data_file: str = "data/worker.xlsx"
-jobs_data_file: str = "data/jobs.xlsx"
+jobs_data_file: str = "data/jobs_training_data.xlsx"
 
 
 def parse_job_cache(value: Union[str, List[Any], List[Dict[str, Any]], None]) -> List[Job]:
@@ -64,7 +64,7 @@ jobs: List[Job] = jobs_df.to_dict(orient="records")  # type: ignore
 
 
 # --- Router + Environment ---
-router = Router()
+router = BaseRouter()
 router.update_worker_data(workers)  # populates router.workers
 
 env = RouterEnv(router, jobs, compute_max_values(workers))
@@ -72,7 +72,7 @@ env = RouterEnv(router, jobs, compute_max_values(workers))
 obs: npt.NDArray[np.float32]
 obs, _ = env.reset()
 
-ctx_size: int = 7
+ctx_size: int = 8
 print("Initial observation by worker:")
 for i, worker in enumerate(router.workers):
     start = i * ctx_size
@@ -82,8 +82,8 @@ for i, worker in enumerate(router.workers):
 
 
 # --- RL Training ---
-# model = PPO("MlpPolicy", env, verbose=1)
-# model.learn(total_timesteps=5000) # type:ignore
-# model.save("worker_selector_model")
+model = PPO("MlpPolicy", env, verbose=1)
+model.learn(total_timesteps=5000) # type:ignore
+model.save("worker_selector_model")
 
 print("Training finished and model saved.")

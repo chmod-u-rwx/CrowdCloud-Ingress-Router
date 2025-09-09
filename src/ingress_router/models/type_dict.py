@@ -20,6 +20,7 @@ class Worker(TypedDict):
 
 class MaxValues(TypedDict):
     cpu: float
+    memory: float
     job_slot: float
     runtime: float
     latency: float

@@ -4,30 +4,30 @@ from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
-from .router import Router
-from .type_dict import Worker, Job, MaxValues
+from .base_router import BaseRouter
+from .models.type_dict import Worker, Job, MaxValues
 from .utils.context_vector import build_context_vector
 
 
 class RouterEnv(gym.Env[npt.NDArray[np.float32], int]):
     """
-    A Gymnasium environment for training a Router agent.
+    A Gymnasium environment for training a BaseRouter agent.
     Each observation is a concatenated context vector for all workers,
     given the current job.
     """
 
     metadata = {"render_modes": []}
 
-    def __init__(self, router: Router, jobs: List[Job], max_values: MaxValues) -> None:
+    def __init__(self, router: BaseRouter, jobs: List[Job], max_values: MaxValues) -> None:
         super().__init__()
-        self.router: Router = router
+        self.router: BaseRouter = router
         self.jobs: List[Job] = jobs
         self.max_values: MaxValues = max_values
 
         # Each worker is an action
         self.action_space = spaces.Discrete(len(router.workers)) # type: ignore
 
-        ctx_size: int = 7
+        ctx_size: int = 8
         self.observation_space = spaces.Box(
             low=0.0, high=1.0, shape=(len(router.workers) * ctx_size,), dtype=np.float32
         )
