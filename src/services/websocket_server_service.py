@@ -115,8 +115,9 @@ class IngressRouterWebsocketServerService:
         
         try:
             await ws.send_json(ws_message.model_dump(mode="json"))
+            print("sent job")
             response = await asyncio.wait_for(response_future, timeout=timeout)
-            
+            print("received")
             return response
         
         except ValidationError as ve:
