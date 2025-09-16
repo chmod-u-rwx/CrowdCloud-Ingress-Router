@@ -1,7 +1,8 @@
 from uuid import UUID
 from fastapi import FastAPI, WebSocket
-from src.routes import route_parser
-from src.services.websocket_server_service import ingress_router_ws
+
+from .routes import route_parser
+from .services.websocket_server_service import ingress_router_ws
 
 app = FastAPI()
 app.include_router(route_parser.router)

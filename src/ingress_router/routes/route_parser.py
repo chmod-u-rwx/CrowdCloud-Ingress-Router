@@ -2,9 +2,9 @@ import json
 from uuid import UUID, uuid4
 from fastapi import Request, APIRouter
 from typing import Any
-from src.models.parsed_request import ParsedRequest
-from src.services.websocket_server_service import ingress_router_ws
-from src.models.payloads import JobRequestPayload, JobResponsePayload, MethodEnum
+from ..models.parsed_request import ParsedRequest
+from ..services.websocket_server_service import ingress_router_ws
+from ..models.payloads import JobRequestPayload, JobResponsePayload, MethodEnum
 
 router = APIRouter()
 

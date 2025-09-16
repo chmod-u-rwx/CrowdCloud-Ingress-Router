@@ -5,7 +5,8 @@ from uuid import UUID
 from asyncio import Future
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
-from src.models.payloads import (
+
+from ..models.payloads import (
     JobRequestPayload,
     JobResponsePayload,
     WebsocketMessage,
