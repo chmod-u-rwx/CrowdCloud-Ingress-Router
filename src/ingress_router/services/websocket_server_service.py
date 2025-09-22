@@ -117,7 +117,8 @@ class IngressRouterWebsocketServerService:
         try:
             await ws.send_json(ws_message.model_dump(mode="json"))
             print("sent job")
-            response = await asyncio.wait_for(response_future, timeout=timeout)
+            # response = await asyncio.wait_for(response_future, timeout=timeout)
+            response = await asyncio.wait_for(response_future, timeout=None)
             print("received")
             return response
         
