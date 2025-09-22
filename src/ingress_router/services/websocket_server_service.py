@@ -115,10 +115,12 @@ class IngressRouterWebsocketServerService:
         )
         
         try:
-            await ws.send_json(ws_message.model_dump())
-            response = await asyncio.wait_for(response_future, timeout=timeout)
-            
-            return JobResponsePayload(**response)
+            await ws.send_json(ws_message.model_dump(mode="json"))
+            print("sent job")
+            # response = await asyncio.wait_for(response_future, timeout=timeout)
+            response = await asyncio.wait_for(response_future, timeout=None)
+            print("received")
+            return response
         
         except ValidationError as ve:
             raise InvalidMasterResponseError(f"Invalid response from master: {ve}")
