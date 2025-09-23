@@ -61,3 +61,4 @@ class Router:
 
             return {"worker_id": worker["worker_id"], "master_id": worker["master_id"]}
 
+router = Router("worker_selector_model.zip")

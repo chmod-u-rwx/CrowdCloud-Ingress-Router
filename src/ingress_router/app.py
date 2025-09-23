@@ -2,9 +2,11 @@ from uuid import UUID
 from fastapi import FastAPI, WebSocket
 
 from .routes import route_parser
+from .routes import heartbeat
 from .services.websocket_server_service import ingress_router_ws
 
 app = FastAPI()
+# app.include_router(heartbeat.api_router)
 app.include_router(route_parser.router)
 
 @app.websocket("/ws/connect/{worker_id}")
