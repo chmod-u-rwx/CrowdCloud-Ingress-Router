@@ -2,7 +2,8 @@ import copy
 import threading
 import time
 from fastapi import APIRouter
-from ..type_dict import Worker
+from pydantic import conint
+from ..models.type_dict import Worker
 from ..router import router
 
 api_router = APIRouter(prefix="/heartbeat")
@@ -12,7 +13,12 @@ heartbeat_queue: list[Worker] = []
 
 @api_router.post("/")
 def heartbeat(worker: Worker):
+    print("heartbeat: ", worker)
     heartbeat_queue.append(worker)
+    
+@api_router.get("/test")
+def test():
+    return "test working!"
 
 
 def consume_loop():

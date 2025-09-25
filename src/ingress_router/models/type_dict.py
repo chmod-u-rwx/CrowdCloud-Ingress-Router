@@ -1,4 +1,4 @@
-from typing import List, TypedDict
+from typing_extensions import List, TypedDict
 from uuid import UUID
 
 class Job(TypedDict):
